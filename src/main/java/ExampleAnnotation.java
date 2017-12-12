@@ -1,3 +1,5 @@
+import java.util.List;
+
 import org.deeplearning4j.models.embeddings.loader.WordVectorSerializer;
 import org.deeplearning4j.models.word2vec.Word2Vec;
 
@@ -18,6 +20,15 @@ public class ExampleAnnotation
 
 	public static void load() {
 		modelEntities =  WordVectorSerializer.readWord2VecModel(ADDRESS_OF_MODEL);
+	}
+
+	public static double[] getWordVector(String entity1) {
+		return modelEntities.getWordVector(entity1);
+	}
+
+	public static double[] getSentenceVector(List<String> words) {
+		System.err.println(modelEntities.getWordVectorsMean(words));
+		return null;
 	}
 
 }

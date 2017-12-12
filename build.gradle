@@ -1,0 +1,103 @@
+plugins {
+    id 'org.hidetake.ssh' version '2.8.0'
+}
+
+gradle.projectsEvaluated {
+   compileJava.dependsOn(copyConfiguration)
+}
+
+def environment = hasProperty('env') ? env : 'dev'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+apply plugin: 'distribution'
+
+mainClassName = "Server"
+
+applicationDefaultJvmArgs = ["-Xmx30g"]
+
+apply plugin: 'java-library'
+
+// In this section you declare where to find the dependencies of your project
+repositories {
+    jcenter()
+}
+
+dependencies {
+	compile group: 'log4j', name: 'log4j', version: '1.2.17'
+    compile "com.sparkjava:spark-core:2.6.0"
+	compile group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1.1'
+	compile group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.3'
+	compile group: 'org.deeplearning4j', name: 'deeplearning4j-nlp', version: '0.9.1'
+    compile group: 'org.datavec', name: 'datavec-api', version: '0.9.1'
+    compile group: 'org.nd4j', name: 'nd4j-native-platform', version: '0.9.1'
+    compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.24'    
+}
+
+ssh.settings {
+    dryRun = project.hasProperty('dryRun')
+}
+
+remotes {
+    server {
+        host = '10.10.4.10'
+        user = 'rima'
+        identity = file("${System.properties['user.home']}/.ssh/id_rsa")
+    }
+}
+
+
+task deploy(dependsOn: installDist) << {
+    ssh.run {
+        session(remotes.server) {
+         	execute 'rm -rf /home/rima/playground/Word2VecServer'
+            put from: './build/install/Word2VecServer', into: '/home/rima/playground/'
+            execute 'chmod +x /home/rima/playground/Word2VecServer/bin/Word2VecServer'
+            execute 'cd /home/rima/playground/Word2VecServer/bin && ./Word2VecServer'
+            //get from: '/home/rima/playground/Word2VecServer/bin/log', into: '.'
+        }
+    }
+}
+
+task deployZip(dependsOn: distTar) {
+    doLast {
+    	ssh.run {
+	        session(remotes.server) {        
+	         	execute 'rm -rf /home/rima/playground/Word2VecServer'         	
+	            put from: './build/distributions/Word2VecServer.tar', into: '/home/rima/playground/'
+	            execute 'cd /home/rima/playground/ && tar -xf Word2VecServer.tar'            
+	            execute 'cd /home/rima/playground/ && chmod +x Word2VecServer/bin/Word2VecServer'
+	            execute 'cd /home/rima/playground/Word2VecServer/bin && ./Word2VecServer'	            
+	        }
+    	}
+    }
+}
+
+jar {    
+   exclude('config.properties')
+}
+
+applicationDistribution.from("src/main/resources/config.properties") {
+   into "bin"
+}
+
+startScripts {
+   classpath += files('bin')
+   doLast {
+       def windowsScriptFile = file getWindowsScript()
+       def unixScriptFile    = file getUnixScript()
+       windowsScriptFile.text = windowsScriptFile.text.replace('%APP_HOME%\\lib\\bin', '%APP_HOME%\\bin')
+       unixScriptFile.text    = unixScriptFile.text.replace('$APP_HOME/lib/bin', '$APP_HOME/bin')
+   }
+}
+
+
+task copyConfiguration << {
+    println "Target environment: $environment"
+    copy {
+        from "src/main/environment/$environment"
+        into "src/main/resources"
+        include "**/*"
+    }
+}

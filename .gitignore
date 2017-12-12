@@ -1,0 +1,11 @@
+/.gradle/
+/build/
+/bin/
+/src/main/resources/*
+/src/test/resource/*
+/res/
+/src/test/
+/.settings/
+/log/
+.project
+.classpath
