@@ -13,7 +13,7 @@ apply plugin: 'eclipse'
 apply plugin: 'application'
 apply plugin: 'distribution'
 
-mainClassName = "Server"
+mainClassName = "controller.Main"
 
 applicationDefaultJvmArgs = ["-Xmx30g"]
 
@@ -68,7 +68,7 @@ task deployZip(dependsOn: distTar) {
 	            put from: './build/distributions/Word2VecServer.tar', into: '/home/rima/playground/'
 	            execute 'cd /home/rima/playground/ && tar -xf Word2VecServer.tar'            
 	            execute 'cd /home/rima/playground/ && chmod +x Word2VecServer/bin/Word2VecServer'
-	            execute 'cd /home/rima/playground/Word2VecServer/bin && ./Word2VecServer'	            
+	            //execute 'cd /home/rima/playground/Word2VecServer/bin && ./Word2VecServer'	            
 	        }
     	}
     }
@@ -76,10 +76,19 @@ task deployZip(dependsOn: distTar) {
 
 jar {    
    exclude('config.properties')
+   exclude('edu')
 }
 
 applicationDistribution.from("src/main/resources/config.properties") {
    into "bin"
+}
+task copyConfiguration << {
+    println "Target environment: $environment"
+    copy {
+        from "src/main/environment/$environment"
+        into "src/main/resources"
+        include "**/*"
+    }
 }
 
 startScripts {
@@ -92,12 +101,32 @@ startScripts {
    }
 }
 
+task deployOnlyJar(dependsOn: installDist) << {
+    ssh.run {
+        session(remotes.server) {         	
+        	execute 'rm -rf /home/rima/playground/Word2VecServer/lib/Word2VecServer.jar'
+        	execute 'rm -rf /home/rima/playground/Word2VecServer/bin/log'
+            put from: './build/install/Word2VecServer/lib/Word2VecServer.jar', into: '/home/rima/playground/Word2VecServer/lib'
+        }
+    }
+}
 
-task copyConfiguration << {
-    println "Target environment: $environment"
-    copy {
-        from "src/main/environment/$environment"
-        into "src/main/resources"
-        include "**/*"
+task deployOnlyExe(dependsOn: installDist) << {
+    ssh.run {
+        session(remotes.server) {         	
+        	execute 'rm -rf /home/rima/playground/Word2VecServer/bin/Word2VecServer'
+            put from: './build/install/Word2VecServer/bin/Word2VecServer', into: '/home/rima/playground/Word2VecServer/bin'
+            execute 'chmod +x /home/rima/playground/Word2VecServer/bin/Word2VecServer'
+        }
+    }
+}
+
+task deployOnlyConfig(dependsOn: copyConfiguration) << {
+    ssh.run {
+        session(remotes.server) {         	
+        	execute 'rm -rf /home/rima/playground/Word2VecServer/bin/Word2VecServer/bin/config.properties'
+        	execute 'rm -rf /home/rima/playground/Word2VecServer/bin/log'
+            put from: '/home/rtue/workspace/Word2VecServer/src/main/resources/config.properties', into: '/home/rima/playground/Word2VecServer/bin'            
+        }
     }
 }
