@@ -1,6 +1,7 @@
 /.gradle/
 /build/
 /bin/
+/lib/
 /src/main/resources/*
 /src/test/resource/*
 /res/
@@ -9,3 +10,6 @@
 /log/
 .project
 .classpath
+/data/
+/vectorData/
+src/main/java/DumpFile
